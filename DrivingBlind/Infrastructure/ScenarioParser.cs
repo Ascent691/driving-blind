@@ -44,7 +44,7 @@ public class ScenarioParser
                 }
             }
 
-            results[i] = new Scenario(cells);
+            results[i] = new Scenario(cells, numColumns, numRows);
         }
 
         return results;

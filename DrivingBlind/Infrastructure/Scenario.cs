@@ -6,4 +6,4 @@ using System.Threading.Tasks;
 
 namespace Infrastructure;
 
-public record Scenario(CellType[,] Cells);
+public record Scenario(CellType[,] Cells, int Width, int Height);

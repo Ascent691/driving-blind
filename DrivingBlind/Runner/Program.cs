@@ -9,7 +9,7 @@ internal class Program
     static void Main(string[] args)
     {
         var timer = Stopwatch.StartNew();
-        var scenarios = new ScenarioParser().Parse(File.ReadAllLines("simple.in"));
+        var scenarios = new CoolerScenarioParser().Parse(File.ReadAllLines("simple.in"));
         var expectedAnswers = new ScenarioAnswerParser().Parse(File.ReadAllLines("simple.ans"));
 
         if (scenarios.Length != expectedAnswers.Length)
@@ -48,8 +48,9 @@ internal class Program
         Console.ReadLine();
     }
 
-    private static ScenarioAnswer DetermineAnswer(Scenario scenario)
+    private static ScenarioAnswer DetermineAnswer(CoolerScenario scenario)
     {
-        throw new NotImplementedException("Implement me!");
+        var p = PairFinder.Calculate(scenario);
+        return p;
     }
 }

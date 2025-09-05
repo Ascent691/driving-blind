@@ -1,132 +1,44 @@
-﻿namespace Infrastructure
+﻿using System.Diagnostics.Tracing;
+
+namespace Infrastructure
 {
     public class Navigator
     {
-        private readonly TravelCell[,] _travelPoints;
+        private readonly Node[,] _nodes;
         private readonly long _width;
         private readonly long _height;
 
         public Navigator(CellType[,] cells, long width, long height)
         {
-            _travelPoints = new TravelCell[width, height];
             _width = width;
             _height = height;
-            InitTravelPoints(cells);
-            ScanCells();
+            _nodes = new Node[width, height];
+            InitNodes(cells);
+            BuildPaths();
         }
+
 
         public string FindPairs()
         {
-            var startingCells = Iterate().Where((x) => _travelPoints[x.Item1, x.Item2].CellType == CellKind.InterestingStart);
-            var tasks = startingCells.Select(start => Task.Run(
-                    () => FindInterestingFinishesFromCell(start)
-                        .Select((finish) => $"{_travelPoints[start.Item1, start.Item2]}{finish}")
-                        )).ToArray();
-            Task.WaitAll(tasks);
-            var pairs = tasks.SelectMany((t) => t.Result).Distinct().Order();
-            return pairs.Any() ? string.Join(" ", pairs) : "NONE";
+            var interestingStarts = IterateNodes().Where((node) => node.Current.Kind == CellKind.InterestingStart);
+            var pairs = interestingStarts.SelectMany((start) => FindInterestingEndsFromNode(start).Select((finish) => $"{start}{finish}"));
+            return pairs.Any() ? string.Join(' ', pairs.Distinct().Order()) : "NONE";
         }
-        
-        private IEnumerable<char> FindInterestingFinishesFromCell((int, int) startingCell)
+
+        private static IEnumerable<Node> FindInterestingEndsFromNode(Node startingNode)
         {
-            var explored = new List<(int, int)>();
-            var queue = new List<(int, int)>() { startingCell };
+            var travelled = new HashSet<Node>() { startingNode };
+            var queue = new Queue<Node>();
+            queue.Enqueue(startingNode);
 
             while (queue.Count > 0)
             {
-                foreach (var point in new List<(int, int)>(queue))
+                var node = queue.Dequeue();
+                if (node.Current.Kind == CellKind.InterestingFinish) yield return node;
+                foreach (var next in node.Next.Where((node) => !travelled.Contains(node)))
                 {
-                    queue.Remove(point);
-                    explored.Add(point);
-
-                    var cell = _travelPoints[point.Item1, point.Item2];
-                    if (cell.CellType == CellKind.InterestingFinish) yield return cell.CellType.Identifier;
-
-
-                    var explorable = new List<(int, int)>();
-
-                    if (cell.CanTravelVertical) explorable.AddRange(IterateVertical(point));
-                    if (cell.CanTravelHorizontal) explorable.AddRange(IterateHorizontal(point));
-
-                    queue.AddRange(explorable.Where((c) => !explored.Contains(c)));
-                }
-            }
-        }
-
-        private IEnumerable<(int, int)> IterateHorizontal((int, int) startingPoint)
-        {
-            var line = IterateLine(
-                startingPoint, 
-                (point, range) => (point.Item1 + range, point.Item2), 
-                (point) => point.Item1 < 0 || point.Item1 >= _width
-            );
-            
-            if (line.Count(x => !_travelPoints[x.Item1, x.Item2].CanTravelHorizontal) >= 2) return [];
-
-            return line;
-        }
-
-        private IEnumerable<(int, int)> IterateVertical((int, int) startingPoint)
-        {
-            var line = IterateLine(
-                startingPoint, 
-                (point, range) => (point.Item1, point.Item2 + range), 
-                (point) => point.Item2 < 0 || point.Item2 >= _height
-            );
-
-            if (line.Count((x) => !_travelPoints[x.Item1, x.Item2].CanTravelVertical) >= 2) return [];
-
-            return line;
-        }
-
-        private IEnumerable<(int, int)> IterateLine(
-            (int, int) startingPoint, 
-            Func<(int, int), int, (int, int)> iterator, 
-            Func<(int, int), bool> hasHitLimit
-        )
-        {
-            var hasHitPositiveBlocker = false;
-            var hasHitNegativeBlocker = false;
-            var range = 0;
-            while (!hasHitPositiveBlocker || !hasHitNegativeBlocker)
-            {
-                range++;
-
-                var negativePoint = iterator(startingPoint, -range);
-                hasHitNegativeBlocker |= hasHitLimit(negativePoint) || IsBlocker(_travelPoints[negativePoint.Item1, negativePoint.Item2].CellType);
-
-                if (!hasHitNegativeBlocker) yield return negativePoint;
-
-                var positivePoint = iterator(startingPoint, range);
-                hasHitPositiveBlocker |= hasHitLimit(positivePoint) || IsBlocker(_travelPoints[positivePoint.Item1, positivePoint.Item2].CellType);
-
-                if (!hasHitPositiveBlocker) yield return positivePoint;
-            }
-        }
-
-        private static bool IsBlocker(CellType cell)
-        {
-            return cell == CellType.Wall || cell == CellType.Hazard;
-        }
-
-        private void InitTravelPoints(CellType[,] cells)
-        {
-            foreach (var (column, row) in Iterate())
-            {
-                _travelPoints[column, row] = new TravelCell(cells[column, row]);
-            }
-        }
-
-        private void ScanCells()
-        {
-            foreach (var (column, row) in Iterate())
-            {
-                if (_travelPoints[column, row].CellType == CellType.Hazard)
-                {
-                    if (column - 1 >= 0) _travelPoints[column - 1, row] = _travelPoints[column - 1, row].WithHorizontalHazard();
-                    if (column + 1 < _width) _travelPoints[column + 1, row] = _travelPoints[column + 1, row].WithHorizontalHazard();
-                    if (row - 1 >= 0) _travelPoints[column, row - 1] = _travelPoints[column, row - 1].WithVerticalHazard();
-                    if (row + 1 < _height) _travelPoints[column, row + 1] = _travelPoints[column, row + 1].WithVerticalHazard();
+                    queue.Enqueue(next);
+                    travelled.Add(next);
                 }
             }
         }
@@ -140,6 +52,68 @@
                     yield return (column, row);
                 }
             }
+        }
+
+        private IEnumerable<Node> IterateNodes()
+        {
+            return Iterate().Select((x) => _nodes[x.Item1, x.Item2]);
+        }
+
+        private void InitNodes(CellType[,] cells)
+        {
+            foreach (var (column, row) in Iterate())
+            {
+                _nodes[column, row] = new Node(cells[column, row], column, row);
+            }
+        }
+
+        private void BuildPaths()
+        {
+            foreach (var wall in IterateNodes().Where((node) => node.Current == CellType.Wall))
+            {
+                ConnectNodes(wall, (column) => column, (row) => row + 1);
+                ConnectNodes(wall, (column) => column, (row) => row - 1);
+                ConnectNodes(wall, (column) => column + 1, (row) => row);
+                ConnectNodes(wall, (column) => column - 1, (row) => row);
+            }
+
+            var standableNodes = IterateNodes().Where((node) => !IsObstruction(node));
+            foreach (var edge in standableNodes.Where((node) => node.Row == 0))
+                ConnectNodes(edge, (column) => column, (row) => row + 1);
+            
+            foreach (var edge in standableNodes.Where((node) => node.Row == _height - 1))
+                ConnectNodes(edge, (column) => column, (row) => row - 1);
+            
+            foreach (var edge in standableNodes.Where((node) => node.Column == 0))
+                ConnectNodes(edge, (column) => column + 1, (row) => row);
+            
+            foreach (var edge in standableNodes.Where((node) => node.Column == _width - 1))
+                ConnectNodes(edge, (column) => column - 1, (row) => row);
+        }
+
+        private void ConnectNodes(Node start, Func<int, int> NextColumn, Func<int, int> NextRow)
+        {
+            var currentNode = start;
+            while (true)
+            { 
+                var nextColumn = NextColumn(currentNode.Column);
+                var nextRow = NextRow(currentNode.Row);
+                if (IsOutOfBounds(nextColumn, nextRow)) return;
+                var nextNode = _nodes[nextColumn, nextRow];
+                if (IsObstruction(nextNode)) return;
+                currentNode.AddNext(nextNode);
+                currentNode = nextNode;
+            }
+        }
+
+        private static bool IsObstruction(Node node)
+        {
+            return node.Current == CellType.Hazard || node.Current == CellType.Wall;
+        }
+
+        private bool IsOutOfBounds(int column, int row)
+        {
+            return column < 0 || row < 0 || column >= _width || row >= _height;
         }
     }
 }

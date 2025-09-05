@@ -9,8 +9,8 @@ internal class Program
     static void Main(string[] args)
     {
         var timer = Stopwatch.StartNew();
-        var scenarios = new ScenarioParser().Parse(File.ReadAllLines("simple.in"));
-        var expectedAnswers = new ScenarioAnswerParser().Parse(File.ReadAllLines("simple.ans"));
+        var scenarios = new ScenarioParser().Parse(File.ReadAllLines("1.in"));
+        var expectedAnswers = new ScenarioAnswerParser().Parse(File.ReadAllLines("1.ans"));
 
         if (scenarios.Length != expectedAnswers.Length)
         {

@@ -17,9 +17,9 @@ namespace Infrastructure
 
     public struct CellType : IEquatable<CellType>
     {
-        public static CellType Empty = new CellType(CellKind.InterestingStart, '.');
-        public static CellType Wall = new CellType(CellKind.InterestingStart, '#');
-        public static CellType Hazard = new CellType(CellKind.InterestingStart, '*');
+        public static CellType Empty = new CellType(CellKind.Empty, '.');
+        public static CellType Wall = new CellType(CellKind.Wall, '#');
+        public static CellType Hazard = new CellType(CellKind.Hazard, '*');
 
         public static CellType InterestingStart(char identifier)
         {

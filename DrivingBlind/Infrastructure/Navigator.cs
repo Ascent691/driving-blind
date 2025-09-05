@@ -13,12 +13,12 @@ namespace Infrastructure
 {
     public class Navigator
     {
-        private readonly Cell[,] _cells;
+        private readonly CellType[,] _cells;
         private readonly TravelPoint[,] _travelPoints;
         private readonly long _width;
         private readonly long _height;
 
-        public Navigator(Cell[,] cells, long width, long height)
+        public Navigator(CellType[,] cells, long width, long height)
         {
             _cells = cells;
             _travelPoints = new TravelPoint[width, height];
@@ -30,10 +30,10 @@ namespace Infrastructure
 
         public string FindPairs()
         {
-            var startingCells = Iterate().Where((x) => _cells[x.Item1, x.Item2].Type == CellType.InterestingStart);
+            var startingCells = Iterate().Where((x) => _cells[x.Item1, x.Item2] == CellKind.InterestingStart);
             var tasks = startingCells.Select(start => Task.Run(
                     () => FindInterestingFinishesFromCell(start)
-                        .Select((finish) => _cells[start.Item1, start.Item2].Value + finish.ToString())
+                        .Select((finish) => _cells[start.Item1, start.Item2].Identifier + finish.ToString())
                         )).ToArray();
             Task.WaitAll(tasks);
             var pairs = tasks.SelectMany((t) => t.Result).Distinct().Order();
@@ -51,7 +51,7 @@ namespace Infrastructure
                 {
                     queue.Remove(cell);
                     explored.Add(cell);
-                    if (_cells[cell.Item1, cell.Item2].Type == CellType.InterestingFinish) yield return _cells[cell.Item1, cell.Item2].Value;
+                    if (_cells[cell.Item1, cell.Item2] == CellKind.InterestingFinish) yield return _cells[cell.Item1, cell.Item2].Identifier;
 
 
                     var travelPoint = _travelPoints[cell.Item1, cell.Item2];
@@ -116,9 +116,9 @@ namespace Infrastructure
             }
         }
 
-        private static bool IsBlocker(Cell cell)
+        private static bool IsBlocker(CellType cell)
         {
-            return cell.Type == CellType.Wall || cell.Type == CellType.Hazard;
+            return cell == CellType.Wall || cell == CellType.Hazard;
         }
 
         private void InitTravelPoints()
@@ -133,7 +133,7 @@ namespace Infrastructure
         {
             foreach (var (column, row) in Iterate())
             {
-                if (_cells[column, row].Type == CellType.Hazard)
+                if (_cells[column, row] == CellType.Hazard)
                 {
                     if (column - 1 >= 0) _travelPoints[column - 1, row] = _travelPoints[column - 1, row].WithHorizontalHazard();
                     if (column + 1 < _width) _travelPoints[column + 1, row] = _travelPoints[column + 1, row].WithHorizontalHazard();

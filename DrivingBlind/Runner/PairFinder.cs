@@ -1,8 +1,11 @@
 ﻿using System.Collections;
+using System.Xml.Linq;
 using Infrastructure;
 using Point = Infrastructure.Point;
 
 namespace Runner;
+
+public record struct Pair(char Start, char Finish);
 
 public class PairFinder
 {
@@ -37,12 +40,13 @@ public class PairFinder
         {
             var visited = new HashSet<Point>();
 
-            var stack = new Stack<(Point currCell, Point? prevCell)>();
-            stack.Push((start, null));
+            var stack = new Stack<List<Point>>();
+            stack.Push([start]);
 
             while (stack.Count > 0)
             {
-                var (currCell, prevCell) = stack.Pop();
+                var currentPath = stack.Pop();
+                var currCell = currentPath[^1];
 
                 visited.Add(currCell);
 
@@ -50,20 +54,21 @@ public class PairFinder
                 {
                     var s = cells[start.X, start.Y].Value;
                     var f = cells[currCell.X, currCell.Y].Value;
-                    drivablePairs.Add((s, f));
+                    var pair = new Pair(s, f);
+
                 }
 
-                foreach (var dest in GetAdjacentSafe(currCell, prevCell))
+                foreach (var dest in GetAdjacent(currCell))
                 {
-                    if (!visited.Contains(dest))
+                    if (!currentPath.Contains(dest))
                     {
-                        stack.Push((dest, currCell));
+                        stack.Push([..currentPath, dest]);
                     }
                 }
             }
         }
 
-        IEnumerable<Point> GetAdjacentSafe(Point point, Point? prevPoint)
+        IEnumerable<Point> GetAdjacent(Point point)
         {
             for (var i = -1; i <= 1; i++)
             {
@@ -77,47 +82,7 @@ public class PairFinder
 
                     if (!IsValid(newX, newY)) continue;
 
-                    var wasHoriz = point.Y == prevPoint?.Y;
-                    var isInit = prevPoint is null;
-
-                    if (newY == point.Y) //horizontal move
-                    {
-                        if (isInit)
-                        {
-                            yield return new Point(newX, newY);
-                        }
-                        else
-                        {
-                            if (!wasHoriz) //changed direction
-                            {
-                                if (IsSafeHorizontal(point, (Point) prevPoint))
-                                    yield return new Point(newX, newY);
-                            }
-                            else
-                            {
-                                yield return new Point(newX, newY);
-                            }
-                        }
-                    }
-                    else //vertical move
-                    {
-                        if (isInit)
-                        {
-                            yield return new Point(newX, newY);
-                        }
-                        else
-                        {
-                            if (wasHoriz) //changed direction
-                            {
-                                if (IsSafeVertical(point, (Point) prevPoint))
-                                    yield return new Point(newX, newY);
-                            }
-                            else
-                            {
-                                yield return new Point(newX, newY);
-                            }
-                        }
-                    }
+                    yield return new Point(newX, newY);
                 }
             }
         }
@@ -131,78 +96,8 @@ public class PairFinder
             return true;
         }
 
-        bool IsSafeVertical(Point point, Point prevPoint)
-        {
-            if (prevPoint.Y > point.Y)
-            {
-                for (var y = point.Y; y >= 0; y--)
-                {
-                    if (cells[point.X, y].Type == CellType.Hazard)
-                    {
-                        return false;
-                    }
-
-                    if (cells[point.X, y].Type == CellType.Wall)
-                    {
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                for (var y = point.Y; y < height; y++)
-                {
-                    if (cells[point.X, y].Type == CellType.Hazard)
-                    {
-                        return false;
-                    }
-
-                    if (cells[point.X, y].Type == CellType.Wall)
-                    {
-                        break;
-                    }
-                }
-            }
-            return true;
-        }
-
-        bool IsSafeHorizontal(Point point, Point prevPoint)
-        {
-            if (prevPoint.X > point.X)
-            {
-                for (var x = point.X; x >= 0; x--)
-                {
-                    if (cells[x, point.Y].Type == CellType.Hazard)
-                    {
-                        return false;
-                    }
-
-                    if (cells[point.X, point.Y].Type == CellType.Wall)
-                    {
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                for (var x = point.X; x < width; x++)
-                {
-                    if (cells[x, point.Y].Type == CellType.Hazard)
-                    {
-                        return false;
-                    }
-
-                    if (cells[x, point.Y].Type == CellType.Wall)
-                    {
-                        break;
-                    }
-                }
-            }
-            return true;
-        }
-
         var answer = string.Join(" ", drivablePairs
-            .Select(p => new string([ p.Item1, p.Item2 ]))
+            .Select(p => new string([p.Item1, p.Item2]))
             .OrderBy(s => s)
         );
         answer = answer == "" ? "NONE" : answer;

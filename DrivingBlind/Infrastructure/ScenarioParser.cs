@@ -29,16 +29,20 @@ public class ScenarioParser
                 for (int c = 0; c < cellDesignations.Length; c++)
                 {
                     var designation = cellDesignations[c];
-                    var cellType = CellType.InterestingStart;
+                    var cellType = CellType.Empty;
 
                     if (designation == '*')
                         cellType = CellType.Hazard;
                     else if (designation == '#')
                         cellType = CellType.Wall;
-                    else if (designation == '.')
-                        cellType = CellType.Empty;
-                    else if (Char.IsUpper(designation))
-                        cellType = CellType.InterestingFinish;
+                    else if (designation != '.')
+                    {
+                        if (Char.IsUpper(designation))
+                            cellType = CellType.InterestingFinish(designation);
+                        else
+                            cellType = CellType.InterestingStart(designation);
+                    }
+
 
                     cells[c, r] = cellType;
                 }

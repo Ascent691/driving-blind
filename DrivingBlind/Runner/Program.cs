@@ -50,6 +50,6 @@ internal class Program
 
     private static ScenarioAnswer DetermineAnswer(Scenario scenario)
     {
-        throw new NotImplementedException("Implement me!");
+        return new ScenarioAnswer("");
     }
 }

@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.SqlTypes;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Transactions;
@@ -30,80 +31,88 @@ namespace Infrastructure
         public string FindPairs()
         {
             var startingCells = Iterate().Where((x) => _cells[x.Item1, x.Item2].Type == CellType.InterestingStart);
-            var pairs = startingCells.SelectMany((start) => 
-                FindInterestingFinishesFromCell(start.Item1, start.Item2).Select((finish) => _cells[start.Item1, start.Item2].Value + finish.ToString())
-            ).Distinct();
-            return pairs.Any() ? string.Join(" ", pairs.Order()) : "NONE";
+            var tasks = startingCells.Select(start => Task.Run(
+                    () => FindInterestingFinishesFromCell(start)
+                        .Select((finish) => _cells[start.Item1, start.Item2].Value + finish.ToString())
+                        )).ToArray();
+            Task.WaitAll(tasks);
+            var pairs = tasks.SelectMany((t) => t.Result).Distinct().Order();
+            return pairs.Any() ? string.Join(" ", pairs) : "NONE";
         }
         
-        private IEnumerable<char> FindInterestingFinishesFromCell(int column, int row)
+        private IEnumerable<char> FindInterestingFinishesFromCell((int, int) startingCell)
         {
-            return FindInterestingFinishesFromCell(column, row, []);
+            var explored = new List<(int, int)>();
+            var queue = new List<(int, int)>() { startingCell };
+
+            while (queue.Count > 0)
+            {
+                foreach (var cell in new List<(int, int)>(queue))
+                {
+                    queue.Remove(cell);
+                    explored.Add(cell);
+                    if (_cells[cell.Item1, cell.Item2].Type == CellType.InterestingFinish) yield return _cells[cell.Item1, cell.Item2].Value;
+
+
+                    var travelPoint = _travelPoints[cell.Item1, cell.Item2];
+                    var explorable = new List<(int, int)>();
+
+                    if (travelPoint.CanTravelVertical) explorable.AddRange(IterateVertical(cell));
+                    if (travelPoint.CanTravelHorizontal) explorable.AddRange(IterateHorizontal(cell));
+
+                    queue.AddRange(explorable.Where((c) => !explored.Contains(c)));
+                }
+            }
         }
 
-        private IEnumerable<char> FindInterestingFinishesFromCell(int column, int row, IEnumerable<(int, int)> explored)
+        private IEnumerable<(int, int)> IterateHorizontal((int, int) startingPoint)
         {
-            var cell = _cells[column, row];
-            if (cell.Type == CellType.InterestingFinish) yield return cell.Value;
-
-            var travelPoint = _travelPoints[column, row];
+            var line = IterateLine(
+                startingPoint, 
+                (point, range) => (point.Item1 + range, point.Item2), 
+                (point) => point.Item1 < 0 || point.Item1 >= _width
+            );
             
-            if (travelPoint.CanTravelHorizontal)
-            {
-                foreach (var c in IterateHorizontal(column, row)
-                    .Where((x) => !explored.Contains(x))
-                    .SelectMany((x) => FindInterestingFinishesFromCell(x.Item1, x.Item2, [.. explored, x])))
-                {
-                    yield return c;
-                }
-            }
+            if (line.Count(x => !_travelPoints[x.Item1, x.Item2].CanTravelHorizontal) >= 2) return [];
 
-            if (travelPoint.CanTravelVertical)
-            {
-                foreach (var c in IterateVertical(row, column)
-                    .Where((x) => !explored.Contains(x))
-                    .SelectMany((x) => FindInterestingFinishesFromCell(x.Item1, x.Item2, [.. explored, x])))
-                {
-                    yield return c;
-                }
-            }
+            return line;
         }
 
-        private IEnumerable<(int, int)> IterateHorizontal(int startColumn, int axis)
+        private IEnumerable<(int, int)> IterateVertical((int, int) startingPoint)
         {
-            var hasHitUpBlocker = false;
-            var hasHitDownBlocker = false;
-            var rangeTraveled = 0;
-            while (!hasHitUpBlocker || !hasHitDownBlocker)
-            {
-                rangeTraveled++;
+            var line = IterateLine(
+                startingPoint, 
+                (point, range) => (point.Item1, point.Item2 + range), 
+                (point) => point.Item2 < 0 || point.Item2 >= _height
+            );
 
-                var columnToLeft = startColumn - rangeTraveled;
-                hasHitUpBlocker = hasHitUpBlocker || columnToLeft < 0 || IsBlocker(_cells[columnToLeft, axis]);
-                if (!hasHitUpBlocker) yield return (columnToLeft, axis);
+            if (line.Count((x) => !_travelPoints[x.Item1, x.Item2].CanTravelVertical) >= 2) return [];
 
-                var columnToRight = startColumn + rangeTraveled;
-                hasHitDownBlocker = hasHitDownBlocker || columnToRight >= _width || IsBlocker(_cells[columnToRight, axis]);
-                if (!hasHitDownBlocker) yield return (columnToRight, axis);
-            }
+            return line;
         }
 
-        private IEnumerable<(int, int)> IterateVertical(int startRow, int axis)
+        private IEnumerable<(int, int)> IterateLine(
+            (int, int) startingPoint, 
+            Func<(int, int), int, (int, int)> iterator, 
+            Func<(int, int), bool> hasHitLimit
+        )
         {
-            var hasHitUpBlocker = false;
-            var hasHitDownBlocker = false;
-            var rangeTraveled = 0;
-            while (!hasHitUpBlocker || !hasHitDownBlocker)
+            var hasHitPositiveBlocker = false;
+            var hasHitNegativeBlocker = false;
+            var range = 0;
+            while (!hasHitPositiveBlocker || !hasHitNegativeBlocker)
             {
-                rangeTraveled++;
+                range++;
 
-                var aboveRow = startRow - rangeTraveled;
-                hasHitUpBlocker = hasHitUpBlocker || aboveRow < 0 || IsBlocker(_cells[axis, aboveRow]);
-                if (!hasHitUpBlocker) yield return (axis, aboveRow);
+                var negativePoint = iterator(startingPoint, -range);
+                hasHitNegativeBlocker |= hasHitLimit(negativePoint) || IsBlocker(_cells[negativePoint.Item1, negativePoint.Item2]);
 
-                var belowRow = startRow + rangeTraveled;
-                hasHitDownBlocker = hasHitDownBlocker || belowRow >= _height || IsBlocker(_cells[axis, belowRow]);
-                if (!hasHitDownBlocker) yield return (axis, belowRow);
+                if (!hasHitNegativeBlocker) yield return negativePoint;
+
+                var positivePoint = iterator(startingPoint, range);
+                hasHitPositiveBlocker |= hasHitLimit(positivePoint) || IsBlocker(_cells[positivePoint.Item1, positivePoint.Item2]);
+
+                if (!hasHitPositiveBlocker) yield return positivePoint;
             }
         }
 

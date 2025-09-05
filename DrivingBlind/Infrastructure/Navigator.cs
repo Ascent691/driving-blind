@@ -1,39 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Data.SqlTypes;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Transactions;
-
-namespace Infrastructure
+﻿namespace Infrastructure
 {
     public class Navigator
     {
-        private readonly CellType[,] _cells;
-        private readonly TravelPoint[,] _travelPoints;
+        private readonly TravelCell[,] _travelPoints;
         private readonly long _width;
         private readonly long _height;
 
         public Navigator(CellType[,] cells, long width, long height)
         {
-            _cells = cells;
-            _travelPoints = new TravelPoint[width, height];
+            _travelPoints = new TravelCell[width, height];
             _width = width;
             _height = height;
-            InitTravelPoints();
+            InitTravelPoints(cells);
             ScanCells();
         }
 
         public string FindPairs()
         {
-            var startingCells = Iterate().Where((x) => _cells[x.Item1, x.Item2] == CellKind.InterestingStart);
+            var startingCells = Iterate().Where((x) => _travelPoints[x.Item1, x.Item2].CellType == CellKind.InterestingStart);
             var tasks = startingCells.Select(start => Task.Run(
                     () => FindInterestingFinishesFromCell(start)
-                        .Select((finish) => _cells[start.Item1, start.Item2].Identifier + finish.ToString())
+                        .Select((finish) => $"{_travelPoints[start.Item1, start.Item2]}{finish}")
                         )).ToArray();
             Task.WaitAll(tasks);
             var pairs = tasks.SelectMany((t) => t.Result).Distinct().Order();
@@ -47,18 +34,19 @@ namespace Infrastructure
 
             while (queue.Count > 0)
             {
-                foreach (var cell in new List<(int, int)>(queue))
+                foreach (var point in new List<(int, int)>(queue))
                 {
-                    queue.Remove(cell);
-                    explored.Add(cell);
-                    if (_cells[cell.Item1, cell.Item2] == CellKind.InterestingFinish) yield return _cells[cell.Item1, cell.Item2].Identifier;
+                    queue.Remove(point);
+                    explored.Add(point);
+
+                    var cell = _travelPoints[point.Item1, point.Item2];
+                    if (cell.CellType == CellKind.InterestingFinish) yield return cell.CellType.Identifier;
 
 
-                    var travelPoint = _travelPoints[cell.Item1, cell.Item2];
                     var explorable = new List<(int, int)>();
 
-                    if (travelPoint.CanTravelVertical) explorable.AddRange(IterateVertical(cell));
-                    if (travelPoint.CanTravelHorizontal) explorable.AddRange(IterateHorizontal(cell));
+                    if (cell.CanTravelVertical) explorable.AddRange(IterateVertical(point));
+                    if (cell.CanTravelHorizontal) explorable.AddRange(IterateHorizontal(point));
 
                     queue.AddRange(explorable.Where((c) => !explored.Contains(c)));
                 }
@@ -105,12 +93,12 @@ namespace Infrastructure
                 range++;
 
                 var negativePoint = iterator(startingPoint, -range);
-                hasHitNegativeBlocker |= hasHitLimit(negativePoint) || IsBlocker(_cells[negativePoint.Item1, negativePoint.Item2]);
+                hasHitNegativeBlocker |= hasHitLimit(negativePoint) || IsBlocker(_travelPoints[negativePoint.Item1, negativePoint.Item2].CellType);
 
                 if (!hasHitNegativeBlocker) yield return negativePoint;
 
                 var positivePoint = iterator(startingPoint, range);
-                hasHitPositiveBlocker |= hasHitLimit(positivePoint) || IsBlocker(_cells[positivePoint.Item1, positivePoint.Item2]);
+                hasHitPositiveBlocker |= hasHitLimit(positivePoint) || IsBlocker(_travelPoints[positivePoint.Item1, positivePoint.Item2].CellType);
 
                 if (!hasHitPositiveBlocker) yield return positivePoint;
             }
@@ -121,11 +109,11 @@ namespace Infrastructure
             return cell == CellType.Wall || cell == CellType.Hazard;
         }
 
-        private void InitTravelPoints()
+        private void InitTravelPoints(CellType[,] cells)
         {
             foreach (var (column, row) in Iterate())
             {
-                _travelPoints[column, row] = new OpenTravelPoint();
+                _travelPoints[column, row] = new TravelCell(cells[column, row]);
             }
         }
 
@@ -133,7 +121,7 @@ namespace Infrastructure
         {
             foreach (var (column, row) in Iterate())
             {
-                if (_cells[column, row] == CellType.Hazard)
+                if (_travelPoints[column, row].CellType == CellType.Hazard)
                 {
                     if (column - 1 >= 0) _travelPoints[column - 1, row] = _travelPoints[column - 1, row].WithHorizontalHazard();
                     if (column + 1 < _width) _travelPoints[column + 1, row] = _travelPoints[column + 1, row].WithHorizontalHazard();

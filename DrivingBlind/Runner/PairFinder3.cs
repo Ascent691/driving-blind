@@ -19,12 +19,12 @@ public class PairFinder3
         {
             for (var y = 0; y < height; y++)
             {
-                if (cells[x, y].Type == CellType.InterestingStart)
+                if (cells[x, y].Type == CellKind.InterestingStart)
                 {
                     starts.Add(new Point(x, y));
                 }
 
-                if (cells[x, y].Type == CellType.InterestingFinish)
+                if (cells[x, y].Type == CellKind.InterestingFinish)
                 {
                     ends.Add(new Point(x, y));
                 }
@@ -45,7 +45,7 @@ public class PairFinder3
                     var adjacent = GetValidAdjacent(point);
                     var unknowns = new List<Point>();
 
-                    if (cells[point.X, point.Y].Type != CellType.Hazard && cells[point.X, point.Y].Type != CellType.Wall)
+                    if (cells[point.X, point.Y].Type != CellKind.Hazard && cells[point.X, point.Y].Type != CellKind.Wall)
                     {
                         safeCells[point.X, point.Y] = true;
                     }
@@ -82,7 +82,7 @@ public class PairFinder3
                         {
                             if (x > 0)
                             {
-                                if (cells[x - 1, y].Type != CellType.Hazard && !unsafeCells[x - 1, y])
+                                if (cells[x - 1, y].Type != CellKind.Hazard && !unsafeCells[x - 1, y])
                                 {
                                     hasSafePath = true;
                                 }
@@ -97,7 +97,7 @@ public class PairFinder3
                         {
                             if (x + 1 < width)
                             {
-                                if (cells[x + 1, y].Type != CellType.Hazard && !unsafeCells[x + 1, y])
+                                if (cells[x + 1, y].Type != CellKind.Hazard && !unsafeCells[x + 1, y])
                                 {
                                     hasSafePath = true;
                                 }
@@ -113,7 +113,7 @@ public class PairFinder3
                         {
                             if (y > 0)
                             {
-                                if (cells[x, y - 1].Type != CellType.Hazard && !unsafeCells[x, y - 1])
+                                if (cells[x, y - 1].Type != CellKind.Hazard && !unsafeCells[x, y - 1])
                                 {
                                     hasSafePath = true;
                                 }
@@ -128,7 +128,7 @@ public class PairFinder3
                         {
                             if (y + 1 < height)
                             {
-                                if (cells[x, y + 1].Type != CellType.Hazard && !unsafeCells[x, y + 1])
+                                if (cells[x, y + 1].Type != CellKind.Hazard && !unsafeCells[x, y + 1])
                                 {
                                     hasSafePath = true;
                                 }
@@ -163,7 +163,7 @@ public class PairFinder3
                     var adjacent = GetValidAdjacent(point);
                     var unknowns = new List<Point>();
 
-                    if (cells[point.X, point.Y].Type == CellType.InterestingStart)
+                    if (cells[point.X, point.Y].Type == CellKind.InterestingStart)
                     {
                         drivablePairs.Add((cells[point.X, point.Y].Value, cells[end.X, end.Y].Value));
                     }
@@ -197,22 +197,22 @@ public class PairFinder3
                 if (from.X < to.X) //check left
                 {
                     if (from.X == 0) return true;
-                    if (cells[from.X - 1, from.Y].Type == CellType.Hazard) return false;
+                    if (cells[from.X - 1, from.Y].Type == CellKind.Hazard) return false;
                 }
                 else if (from.X > to.X) //check right
                 {
                     if (from.X == width - 1) return true;
-                    if (cells[from.X + 1, from.Y].Type == CellType.Hazard) return false;
+                    if (cells[from.X + 1, from.Y].Type == CellKind.Hazard) return false;
                 }
                 else if (from.Y < to.Y) //check above
                 {
                     if (from.Y == 0) return true;
-                    if (cells[from.X, from.Y - 1].Type == CellType.Hazard) return false;
+                    if (cells[from.X, from.Y - 1].Type == CellKind.Hazard) return false;
                 }
                 else if (from.Y > to.Y) //check below
                 {
                     if (from.Y == height - 1) return true;
-                    if (cells[from.X, from.Y + 1].Type == CellType.Hazard) return false;
+                    if (cells[from.X, from.Y + 1].Type == CellKind.Hazard) return false;
                 }
 
                 return true;
@@ -242,8 +242,8 @@ public class PairFinder3
             var (x, y) = point;
             if (x < 0 || y < 0) return false;
             if (x >= width || y >= height) return false;
-            if (cells[x, y].Type == CellType.Wall) return false;
-            if (cells[x, y].Type == CellType.Hazard) return false;
+            if (cells[x, y].Type == CellKind.Wall) return false;
+            if (cells[x, y].Type == CellKind.Hazard) return false;
             return true;
         }
 
@@ -252,7 +252,7 @@ public class PairFinder3
             var (x, y) = point;
             if (x < 0 || y < 0) return false;
             if (x >= width || y >= height) return false;
-            return cells[x, y].Type == CellType.Hazard;
+            return cells[x, y].Type == CellKind.Hazard;
         }
 
         bool IsSafeBehind(Point origin, Point target, bool[,] safeCells)
@@ -262,8 +262,8 @@ public class PairFinder3
                 for (var i = origin.X - 1; i >= 0; i--)
                 {
                     var newPoint = origin with { X = i };
-                    if (cells[newPoint.X, newPoint.Y].Type == CellType.Hazard) return false;
-                    if (cells[newPoint.X, newPoint.Y].Type == CellType.Wall) return true;
+                    if (cells[newPoint.X, newPoint.Y].Type == CellKind.Hazard) return false;
+                    if (cells[newPoint.X, newPoint.Y].Type == CellKind.Wall) return true;
                     if (safeCells[newPoint.X, newPoint.Y]) return true;
                 }
             }
@@ -272,8 +272,8 @@ public class PairFinder3
                 for (var i = origin.X + 1; i < width; i++)
                 {
                     var newPoint = origin with { X = i };
-                    if (cells[newPoint.X, newPoint.Y].Type == CellType.Hazard) return false;
-                    if (cells[newPoint.X, newPoint.Y].Type == CellType.Wall) return true;
+                    if (cells[newPoint.X, newPoint.Y].Type == CellKind.Hazard) return false;
+                    if (cells[newPoint.X, newPoint.Y].Type == CellKind.Wall) return true;
                     if (safeCells[newPoint.X, newPoint.Y]) return true;
                 }
             }
@@ -282,8 +282,8 @@ public class PairFinder3
                 for (var i = origin.Y - 1; i >= 0; i--)
                 {
                     var newPoint = origin with { Y = i };
-                    if (cells[newPoint.X, newPoint.Y].Type == CellType.Hazard) return false;
-                    if (cells[newPoint.X, newPoint.Y].Type == CellType.Wall) return true;
+                    if (cells[newPoint.X, newPoint.Y].Type == CellKind.Hazard) return false;
+                    if (cells[newPoint.X, newPoint.Y].Type == CellKind.Wall) return true;
                     if (safeCells[newPoint.X, newPoint.Y]) return true;
                 }
             }
@@ -292,8 +292,8 @@ public class PairFinder3
                 for (var i = origin.Y + 1; i < height; i++)
                 {
                     var newPoint = origin with { Y = i };
-                    if (cells[newPoint.X, newPoint.Y].Type == CellType.Hazard) return false;
-                    if (cells[newPoint.X, newPoint.Y].Type == CellType.Wall) return true;
+                    if (cells[newPoint.X, newPoint.Y].Type == CellKind.Hazard) return false;
+                    if (cells[newPoint.X, newPoint.Y].Type == CellKind.Wall) return true;
                     if (safeCells[newPoint.X, newPoint.Y]) return true;
                 }
             }

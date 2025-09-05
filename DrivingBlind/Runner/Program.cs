@@ -9,8 +9,8 @@ internal class Program
     static void Main(string[] args)
     {
         var timer = Stopwatch.StartNew();
-        var scenarios = new CoolerScenarioParser().Parse(File.ReadAllLines("1.in"));
-        var expectedAnswers = new ScenarioAnswerParser().Parse(File.ReadAllLines("1.ans"));
+        var scenarios = new CoolerScenarioParser().Parse(File.ReadAllLines("simple.in"));
+        var expectedAnswers = new ScenarioAnswerParser().Parse(File.ReadAllLines("simple.ans"));
 
         if (scenarios.Length != expectedAnswers.Length)
         {
@@ -22,7 +22,7 @@ internal class Program
         var failedScenarios = 0;
         var builder = new StringBuilder();
 
-        for (int i = 12; i < 13; i++)
+        for (int i = 0; i < scenarios.Length; i++)
         {
             Console.WriteLine("Case: " + (i + 1) + "\n---------");
 
@@ -52,7 +52,7 @@ internal class Program
 
     private static ScenarioAnswer DetermineAnswer(CoolerScenario scenario)
     {
-        var p = PairFinder2.Calculate(scenario);
+        var p = PairFinder3.Calculate(scenario);
         return p;
     }
 }

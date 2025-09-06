@@ -105,6 +105,7 @@
                 var (nextColumn, nextRow) = Next(current);
                 if (IsOutOfBounds(nextColumn, nextRow)) break;
                 var nextNode = _nodes[nextColumn, nextRow];
+                if (IsObstruction(nextNode)) break;
                 yield return nextNode;
                 current = nextNode;
             }

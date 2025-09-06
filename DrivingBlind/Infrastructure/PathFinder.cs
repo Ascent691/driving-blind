@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Infrastructure
+﻿namespace Infrastructure
 {
     public class PathBuilder
     {
@@ -24,6 +18,7 @@ namespace Infrastructure
         {
             BuildPathsFromWalls();
             BuildPathsFromEdges();
+            BuildPathsFromExistingPaths();
             return IterateNodes();
         }
 
@@ -31,10 +26,10 @@ namespace Infrastructure
         {
             foreach (var wall in IterateNodes().Where((node) => node.Current == CellType.Wall))
             {
-                ConnectNodes(wall, (node) => (node.Column, node.Row + 1));
-                ConnectNodes(wall, (node) => (node.Column, node.Row - 1));
-                ConnectNodes(wall, (node) => (node.Column + 1, node.Row));
-                ConnectNodes(wall, (node) => (node.Column - 1, node.Row));
+                ConnectNodes(wall, Direction.North);
+                ConnectNodes(wall, Direction.South);
+                ConnectNodes(wall, Direction.East);
+                ConnectNodes(wall, Direction.West);
             }
         }
 
@@ -42,31 +37,33 @@ namespace Infrastructure
         {
             var standableNodes = IterateNodes().Where((node) => !IsObstruction(node));
             foreach (var edge in standableNodes.Where((node) => node.Row == 0))
-                ConnectNodes(edge, (node) => (node.Column, node.Row + 1));
+                ConnectNodes(edge, Direction.South);
             
             foreach (var edge in standableNodes.Where((node) => node.Row == _height - 1))
-                ConnectNodes(edge, (node) => (node.Column, node.Row - 1));
+                ConnectNodes(edge, Direction.North);
             
             foreach (var edge in standableNodes.Where((node) => node.Column == 0))
-                ConnectNodes(edge, (node) => (node.Column + 1, node.Row));
+                ConnectNodes(edge, Direction.East);
             
             foreach (var edge in standableNodes.Where((node) => node.Column == _width - 1))
-                ConnectNodes(edge, (node) => (node.Column - 1, node.Row));
+                ConnectNodes(edge, Direction.West);
         }
 
-        private void ConnectNodes(Node start, Func<Node, (int, int)> Next)
+        private void BuildPathsFromExistingPaths()
         {
-            var currentNode = start;
-            while (true)
-            { 
-                var (nextColumn, nextRow) = Next(currentNode);
-                if (IsOutOfBounds(nextColumn, nextRow)) return;
-                var nextNode = _nodes[nextColumn, nextRow];
-                if (IsObstruction(nextNode)) return;
-                currentNode.AddNext(nextNode);
-                currentNode = nextNode;
+            var existingPaths = IterateNodes().SelectMany((node) => node.Next);
+        }
+
+        private void ConnectNodes(Node start, Direction direction)
+        {
+            var current = start;
+            foreach (var node in IterateInDirection(start, direction))
+            {
+                current.AddNext(node);
+                current = node;
             }
         }
+
 
         private IEnumerable<(int, int)> Iterate()
         {
@@ -82,6 +79,35 @@ namespace Infrastructure
         private IEnumerable<Node> IterateNodes()
         {
             return Iterate().Select((x) => _nodes[x.Item1, x.Item2]);
+        }
+
+        private IEnumerable<Node> IterateInDirection(Node start, Direction direction)
+        {
+            switch (direction) {
+                case Direction.North:
+                    return IterateLine(start, (node) => (node.Column, node.Row - 1));
+                case Direction.South:
+                    return IterateLine(start, (node) => (node.Column, node.Row + 1));
+                case Direction.East:
+                    return IterateLine(start, (node) => (node.Column + 1, node.Row));
+                case Direction.West:
+                    return IterateLine(start, (node) => (node.Column - 1, node.Row));
+                default:
+                    return [];
+            }
+        }
+
+        private IEnumerable<Node> IterateLine(Node start, Func<Node, (int, int)> Next)
+        {
+            var current = start;
+            while (true)
+            {
+                var (nextColumn, nextRow) = Next(current);
+                if (IsOutOfBounds(nextColumn, nextRow)) break;
+                var nextNode = _nodes[nextColumn, nextRow];
+                yield return nextNode;
+                current = nextNode;
+            }
         }
 
         private void InitNodes(CellType[,] cells)

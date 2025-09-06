@@ -49,15 +49,22 @@
 
         private void BuildPathsFromExistingPaths()
         {
-            foreach (var path in IterateNodes().SelectMany((node) => node.Next).ToList())
+            var connections = GetTotalConnections();
+            while (true)
             {
-                foreach (var direction in IterateDirections())
+                foreach (var path in IterateNodes().SelectMany((node) => node.Next).ToList())
                 {
-                    if (CanLoopInDirection(path, direction))
+                    foreach (var direction in IterateDirections())
                     {
-                        ConnectNodes(path, GetOppositeDirection(direction));
+                        if (CanLoopInDirection(path, direction))
+                        {
+                            ConnectNodes(path, GetOppositeDirection(direction));
+                        }
                     }
                 }
+                var newConnections = GetTotalConnections();
+                if (connections == newConnections) break;
+                connections = newConnections;
             }
         }
 
@@ -115,6 +122,11 @@
                 default:
                     return Direction.None;
             }
+        }
+
+        private int GetTotalConnections()
+        {
+            return IterateNodes().Sum((node) => node.Next.Count);
         }
 
         private static IEnumerable<Direction> IterateDirections()

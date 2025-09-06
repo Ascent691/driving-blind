@@ -50,7 +50,8 @@ internal class Program
 
     private static ScenarioAnswer DetermineAnswer(Scenario scenario)
     {
-        var navigator = new Navigator(scenario.Cells, scenario.Width, scenario.Height);
-        return new ScenarioAnswer(navigator.FindPairs());
+        var pathBuilder = new PathBuilder(scenario.Cells, scenario.Width, scenario.Height);
+        var navigator = new Navigator();
+        return new ScenarioAnswer(Navigator.FindPairs(pathBuilder.BuildPaths()));
     }
 }

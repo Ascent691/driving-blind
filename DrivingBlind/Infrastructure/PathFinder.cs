@@ -26,10 +26,8 @@
         {
             foreach (var wall in IterateNodes().Where((node) => node.Current == CellType.Wall))
             {
-                ConnectNodes(wall, Direction.North);
-                ConnectNodes(wall, Direction.South);
-                ConnectNodes(wall, Direction.East);
-                ConnectNodes(wall, Direction.West);
+                foreach (var direction in IterateDirections())
+                    ConnectNodes(wall, direction);
             }
         }
 
@@ -51,7 +49,16 @@
 
         private void BuildPathsFromExistingPaths()
         {
-            var existingPaths = IterateNodes().SelectMany((node) => node.Next);
+            foreach (var path in IterateNodes().SelectMany((node) => node.Next).ToList())
+            {
+                foreach (var direction in IterateDirections())
+                {
+                    if (CanLoopInDirection(path, direction))
+                    {
+                        ConnectNodes(path, GetOppositeDirection(direction));
+                    }
+                }
+            }
         }
 
         private void ConnectNodes(Node start, Direction direction)
@@ -74,6 +81,48 @@
                     yield return (column, row);
                 }
             }
+        }
+
+        private bool CanLoopInDirection(Node start, Direction direction)
+        {
+            var queue = new Queue<Node>();
+            var visited = new HashSet<Node>();
+            foreach (var node in IterateInDirection(start, direction))
+            {
+                queue.Enqueue(node);
+                visited.Add(node);
+            }
+
+            while (queue.Count > 0) {
+                var node = queue.Dequeue();
+                if (node == start) return true;
+
+                foreach (var nextNode in node.Next.Where((x) => !visited.Contains(x))) {
+                    queue.Enqueue(nextNode);
+                    visited.Add(nextNode);
+                }
+            }
+            return false;
+        }
+
+        private static Direction GetOppositeDirection(Direction direction)
+        {
+            switch (direction) {
+                case Direction.North: return Direction.South;
+                case Direction.South: return Direction.North;
+                case Direction.West: return Direction.East;
+                case Direction.East: return Direction.West;
+                default:
+                    return Direction.None;
+            }
+        }
+
+        private static IEnumerable<Direction> IterateDirections()
+        {
+            yield return Direction.North;
+            yield return Direction.South;
+            yield return Direction.West;
+            yield return Direction.East;
         }
 
         private IEnumerable<Node> IterateNodes()

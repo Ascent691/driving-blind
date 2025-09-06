@@ -31,10 +31,10 @@ namespace Infrastructure
         {
             foreach (var wall in IterateNodes().Where((node) => node.Current == CellType.Wall))
             {
-                ConnectNodes(wall, (column) => column, (row) => row + 1);
-                ConnectNodes(wall, (column) => column, (row) => row - 1);
-                ConnectNodes(wall, (column) => column + 1, (row) => row);
-                ConnectNodes(wall, (column) => column - 1, (row) => row);
+                ConnectNodes(wall, (node) => (node.Column, node.Row + 1));
+                ConnectNodes(wall, (node) => (node.Column, node.Row - 1));
+                ConnectNodes(wall, (node) => (node.Column + 1, node.Row));
+                ConnectNodes(wall, (node) => (node.Column - 1, node.Row));
             }
         }
 
@@ -42,25 +42,24 @@ namespace Infrastructure
         {
             var standableNodes = IterateNodes().Where((node) => !IsObstruction(node));
             foreach (var edge in standableNodes.Where((node) => node.Row == 0))
-                ConnectNodes(edge, (column) => column, (row) => row + 1);
+                ConnectNodes(edge, (node) => (node.Column, node.Row + 1));
             
             foreach (var edge in standableNodes.Where((node) => node.Row == _height - 1))
-                ConnectNodes(edge, (column) => column, (row) => row - 1);
+                ConnectNodes(edge, (node) => (node.Column, node.Row - 1));
             
             foreach (var edge in standableNodes.Where((node) => node.Column == 0))
-                ConnectNodes(edge, (column) => column + 1, (row) => row);
+                ConnectNodes(edge, (node) => (node.Column + 1, node.Row));
             
             foreach (var edge in standableNodes.Where((node) => node.Column == _width - 1))
-                ConnectNodes(edge, (column) => column - 1, (row) => row);
+                ConnectNodes(edge, (node) => (node.Column - 1, node.Row));
         }
 
-        private void ConnectNodes(Node start, Func<int, int> NextColumn, Func<int, int> NextRow)
+        private void ConnectNodes(Node start, Func<Node, (int, int)> Next)
         {
             var currentNode = start;
             while (true)
             { 
-                var nextColumn = NextColumn(currentNode.Column);
-                var nextRow = NextRow(currentNode.Row);
+                var (nextColumn, nextRow) = Next(currentNode);
                 if (IsOutOfBounds(nextColumn, nextRow)) return;
                 var nextNode = _nodes[nextColumn, nextRow];
                 if (IsObstruction(nextNode)) return;
